@@ -9,8 +9,8 @@ import json , re, logging, time, asyncio
 
 
 logging.basicConfig(level=logging.INFO)
-
-bot = Bot()
+API_TOKEN = ''
+bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
@@ -24,7 +24,7 @@ database={}
 def update_database():
     with open("database.json", "w", encoding="utf-8") as file:
         user_data = database.values()
-        json_data = [json.dumps(data, ensure_ascii=False,indent=4) + '\n' for data in user_data]
+        json_data = [json.dumps(data, ensure_ascii=False) + '\n' for data in user_data]
         file.write('\n'.join(json_data))
 
 def read_database():
@@ -187,25 +187,38 @@ async def periodic_parse_results():
                     if res is None:
                         continue
                     sale_res = res['Скидка']
-                    if sale_res > sale:
+                    if sale_res > sale and i['Цена без скидки'] == res['Цена без скидки'] and i['Цена']!= res['Цена']:
                         await bot.send_message(user_id, f"Скидка на товар увеличилась.\n{url_parse}")
-                        if i['Цена без скидки'] == res['Цена без скидки']:
-                            i['Скидка'] = sale_res
-                            update_database()
-                        else:
-                            new_item = {
-                                'Цена': res['Цена'],
-                                'Цена без скидки': res['Цена без скидки'],
-                                'Скидка': sale_res,
-                            }
-                            database[user_id]['data'].remove(i)
-                            database[user_id]['data'].append(new_item)
-                            update_database()
+                        i['Цена'] =res['Цена']
+                        i['Скидка'] = sale_res
+                        update_database()
+                    elif sale_res > sale and i['Цена без скидки'] != res['Цена без скидки']:
+                        final_price_1 = float(i['Цена'].text.replace(" ", "").replace("₽", ""))
+                        final_price_2 = float(res['Цена'].text.replace(" ", "").replace("₽", ""))
+                        i['Цена без скидки'] = res['Цена без скидки']
+                        i['Скидка'] = sale_res
+                        update_database()
+                        if final_price_1< final_price_2:
+                            await bot.send_message(user_id, f"Скидка на товар увеличилась.\n{url_parse}")
+                    elif sale_res == sale and i['Цена без скидки'] != res['Цена без скидки'] and i['Цена']!= res['Цена']:
+                        i['Цена без скидки'] = res['Цена без скидки']
+                        i['Цена'] = res['Цена']
+                        old_price_1= float(i['Цена без скидки'].text.replace(" ", "").replace("₽", ""))
+                        old_price_2 = float(res['Цена без скидки'].text.replace(" ", "").replace("₽", ""))
+                        final_price_1 = float(i['Цена'].text.replace(" ", "").replace("₽", ""))
+                        final_price_2 = float(res['Цена'].text.replace(" ", "").replace("₽", ""))
+                        if old_price_1 < old_price_2 and final_price_1 < final_price_2:
+                            await bot.send_message(user_id, f"Цена уменьшилась .\n{url_parse}")
+                        update_database()
+                    else:
+                        continue
+
         await asyncio.sleep(60)
 
 
 
 async def start():
-    await periodic_parse_results()
+    task = asyncio.create_task(periodic_parse_results())
     await dp.start_polling(bot)
+    await task
 
