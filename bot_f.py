@@ -9,8 +9,8 @@ import json , re, logging, time, asyncio
 
 
 logging.basicConfig(level=logging.INFO)
-API_TOKEN = '6940355620:AAF4R-M21Xbnl5V9rfBZDR1TiE1Nqfo5fjs'
-bot = Bot(token=API_TOKEN)
+
+bot = Bot()
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
